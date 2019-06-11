@@ -5,8 +5,8 @@ from __future__ import print_function
 import collections
 import tensorflow as tf
 
-from tensorflow.contrib.seq2seq.python.ops import decoder
-from tensorflow.contrib.seq2seq.python.ops import helper as helper_py
+from tensorflow_addons.seq2seq import decoder
+from tensorflow_addons.seq2seq import sampler as helper_py
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.layers import base as layers_base
