@@ -23,7 +23,7 @@ class ZoneoutLSTMCell(RNNCell):
     def __init__(self, num_units, is_training, input_size=None,
          use_peepholes=False, cell_clip=None,
          #initializer=orthogonal_initializer(),
-         initializer=tf.contrib.layers.xavier_initializer(),
+         initializer=tf.keras.initializers.GlorotUniform(),
          num_proj=None, proj_clip=None, ext_proj=None,
          forget_bias=1.0,
          state_is_tuple=True,
