@@ -1,6 +1,5 @@
 import tensorflow as tf 
 from tacotron.models.zoneout_LSTM import ZoneoutLSTMCell
-from tensorflow.contrib.rnn import LSTMBlockCell
 from hparams import hparams
 
 
