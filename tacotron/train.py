@@ -193,6 +193,7 @@ def train(log_dir, args):
 
 def tacotron_train(args):
 	#hparams.parse(args.hparams)
+	tf.compat.v1.disable_eager_execution()
 	os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(args.tf_log_level)
 	run_name = args.name or args.model
 	log_dir = os.path.join(args.base_dir, 'logs-{}'.format(run_name))
