@@ -117,7 +117,7 @@ class ZoneoutLSTMCell(RNNCell):
         input_size = inputs.get_shape().with_rank(2)[1]
 
         with tf.compat.v1.variable_scope(scope or type(self).__name__):
-            if input_size.value is None:
+            if input_size is None:
                 raise ValueError(
                     "Could not infer input size from inputs.get_shape()[-1]")
 
