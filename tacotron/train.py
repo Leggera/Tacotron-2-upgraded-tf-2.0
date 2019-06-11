@@ -17,21 +17,21 @@ log = infolog.log
 
 
 def add_stats(model):
-	with tf.variable_scope('stats') as scope:
-		tf.summary.histogram('mel_outputs', model.mel_outputs)
-		tf.summary.histogram('mel_targets', model.mel_targets)
-		tf.summary.scalar('before_loss', model.before_loss)
-		tf.summary.scalar('after_loss', model.after_loss)
+	with tf.compat.v1.variable_scope('stats') as scope:
+		tf.compat.v1.summary.histogram('mel_outputs', model.mel_outputs)
+		tf.compat.v1.summary.histogram('mel_targets', model.mel_targets)
+		tf.compat.v1.summary.scalar('before_loss', model.before_loss)
+		tf.compat.v1.summary.scalar('after_loss', model.after_loss)
 		if hparams.predict_linear:
-			tf.summary.scalar('linear loss', model.linear_loss)
-		tf.summary.scalar('regularization_loss', model.regularization_loss)
-		tf.summary.scalar('stop_token_loss', model.stop_token_loss)
-		tf.summary.scalar('loss', model.loss)
-		tf.summary.scalar('learning_rate', model.learning_rate) #control learning rate decay speed
-		gradient_norms = [tf.norm(grad) for grad in model.gradients]
-		tf.summary.histogram('gradient_norm', gradient_norms)
-		tf.summary.scalar('max_gradient_norm', tf.reduce_max(gradient_norms)) #visualize gradients (in case of explosion)
-		return tf.summary.merge_all()
+			tf.compat.v1.summary.scalar('linear loss', model.linear_loss)
+		tf.compat.v1.summary.scalar('regularization_loss', model.regularization_loss)
+		tf.compat.v1.summary.scalar('stop_token_loss', model.stop_token_loss)
+		tf.compat.v1.summary.scalar('loss', model.loss)
+		tf.compat.v1.summary.scalar('learning_rate', model.learning_rate) #control learning rate decay speed
+		gradient_norms = [tf.norm(tensor=grad) for grad in model.gradients]
+		tf.compat.v1.summary.histogram('gradient_norm', gradient_norms)
+		tf.compat.v1.summary.scalar('max_gradient_norm', tf.reduce_max(input_tensor=gradient_norms)) #visualize gradients (in case of explosion)
+		return tf.compat.v1.summary.merge_all()
 
 def time_string():
 	return datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -58,7 +58,7 @@ def train(log_dir, args):
 
 	#Set up data feeder
 	coord = tf.train.Coordinator()
-	with tf.variable_scope('datafeeder') as scope:
+	with tf.compat.v1.variable_scope('datafeeder') as scope:
 		feeder = Feeder(coord, input_path, hparams)
 
 	#Set up model:
@@ -71,7 +71,7 @@ def train(log_dir, args):
 		print('no step_counter file found, assuming there is no saved checkpoint')
 
 	global_step = tf.Variable(step_count, name='global_step', trainable=False)
-	with tf.variable_scope('model') as scope:
+	with tf.compat.v1.variable_scope('model') as scope:
 		model = create_model(args.model, hparams)
 		if hparams.predict_linear:
 			model.initialize(feeder.inputs, feeder.input_lengths, feeder.mel_targets, feeder.token_targets, feeder.linear_targets)
@@ -85,17 +85,17 @@ def train(log_dir, args):
 	step = 0
 	time_window = ValueWindow(100)
 	loss_window = ValueWindow(100)
-	saver = tf.train.Saver(max_to_keep=5)
+	saver = tf.compat.v1.train.Saver(max_to_keep=5)
 
 	#Memory allocation on the GPU as needed
-	config = tf.ConfigProto()
+	config = tf.compat.v1.ConfigProto()
 	config.gpu_options.allow_growth = True
 
 	#Train
-	with tf.Session(config=config) as sess:
+	with tf.compat.v1.Session(config=config) as sess:
 		try:
-			summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
-			sess.run(tf.global_variables_initializer())
+			summary_writer = tf.compat.v1.summary.FileWriter(log_dir, sess.graph)
+			sess.run(tf.compat.v1.global_variables_initializer())
 
 			#saved model restoring
 			if args.restore:

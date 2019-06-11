@@ -13,10 +13,10 @@ from datetime import datetime
 class Synthesizer:
 	def load(self, checkpoint_path, gta=False, model_name='Tacotron'):
 		print('Constructing model: %s' % model_name)
-		inputs = tf.placeholder(tf.int32, [1, None], 'inputs')
-		input_lengths = tf.placeholder(tf.int32, [1], 'input_lengths')
-		targets = tf.placeholder(tf.float32, [1, None, hparams.num_mels], 'mel_targets')
-		with tf.variable_scope('model') as scope:
+		inputs = tf.compat.v1.placeholder(tf.int32, [1, None], 'inputs')
+		input_lengths = tf.compat.v1.placeholder(tf.int32, [1], 'input_lengths')
+		targets = tf.compat.v1.placeholder(tf.float32, [1, None, hparams.num_mels], 'mel_targets')
+		with tf.compat.v1.variable_scope('model') as scope:
 			self.model = create_model(model_name, hparams)
 			if gta:
 				self.model.initialize(inputs, input_lengths, targets, gta=gta)
@@ -27,9 +27,9 @@ class Synthesizer:
 
 		self.gta = gta
 		print('Loading checkpoint: %s' % checkpoint_path)
-		self.session = tf.Session()
-		self.session.run(tf.global_variables_initializer())
-		saver = tf.train.Saver()
+		self.session = tf.compat.v1.Session()
+		self.session.run(tf.compat.v1.global_variables_initializer())
+		saver = tf.compat.v1.train.Saver()
 		saver.restore(self.session, checkpoint_path)
 
 

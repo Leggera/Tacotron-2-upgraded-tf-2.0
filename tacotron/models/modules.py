@@ -7,16 +7,16 @@ from hparams import hparams
 def conv1d(inputs, kernel_size, channels, activation, is_training, scope):
 	drop_rate = hparams.tacotron_dropout_rate
 
-	with tf.variable_scope(scope):
-		conv1d_output = tf.layers.conv1d(
+	with tf.compat.v1.variable_scope(scope):
+		conv1d_output = tf.compat.v1.layers.conv1d(
 			inputs,
 			filters=channels,
 			kernel_size=kernel_size,
 			activation=None,
 			padding='same')
-		batched = tf.layers.batch_normalization(conv1d_output, training=is_training)
+		batched = tf.compat.v1.layers.batch_normalization(conv1d_output, training=is_training)
 		activated = activation(batched)
-		return tf.layers.dropout(activated, rate=drop_rate, training=is_training,
+		return tf.compat.v1.layers.dropout(activated, rate=drop_rate, training=is_training,
 								name='dropout_{}'.format(scope))
 
 
@@ -41,7 +41,7 @@ class EncoderConvolutions:
 		self.scope = 'enc_conv_layers' if scope is None else scope
 
 	def __call__(self, inputs):
-		with tf.variable_scope(self.scope):
+		with tf.compat.v1.variable_scope(self.scope):
 			x = inputs
 			for i in range(hparams.enc_conv_num_layers):
 				x = conv1d(x, self.kernel_size, self.channels, self.activation,
@@ -73,8 +73,8 @@ class EncoderRNN:
 			zoneout_factor_output=zoneout)
 
 	def __call__(self, inputs, input_lengths):
-		with tf.variable_scope(self.scope):
-			outputs, (fw_state, bw_state) = tf.nn.bidirectional_dynamic_rnn(
+		with tf.compat.v1.variable_scope(self.scope):
+			outputs, (fw_state, bw_state) = tf.compat.v1.nn.bidirectional_dynamic_rnn(
 				self._cell,
 				self._cell,
 				inputs,
@@ -108,13 +108,13 @@ class Prenet:
 	def __call__(self, inputs):
 		x = inputs
 
-		with tf.variable_scope(self.scope):
+		with tf.compat.v1.variable_scope(self.scope):
 			for i, size in enumerate(self.layer_sizes):
-				dense = tf.layers.dense(x, units=size, activation=self.activation,
+				dense = tf.compat.v1.layers.dense(x, units=size, activation=self.activation,
 					name='dense_{}'.format(i + 1))
 				#The paper discussed introducing diversity in generation at inference time
 				#by using a dropout of 0.5 only in prenet layers (in both training and inference).
-				x = tf.layers.dropout(dense, rate=self.drop_rate, training=True,
+				x = tf.compat.v1.layers.dropout(dense, rate=self.drop_rate, training=True,
 					name='dropout_{}'.format(i + 1) + self.scope)
 		return x
 
@@ -143,10 +143,10 @@ class DecoderRNN:
 			zoneout_factor_cell=zoneout,
 			zoneout_factor_output=zoneout) for i in range(layers)]
 
-		self._cell = tf.contrib.rnn.MultiRNNCell(self.rnn_layers, state_is_tuple=True)
+		self._cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell(self.rnn_layers, state_is_tuple=True)
 
 	def __call__(self, inputs, states):
-		with tf.variable_scope(self.scope):
+		with tf.compat.v1.variable_scope(self.scope):
 			return self._cell(inputs, states)
 
 
@@ -168,10 +168,10 @@ class FrameProjection:
 		self.scope = 'Linear_projection' if scope is None else scope
 
 	def __call__(self, inputs):
-		with tf.variable_scope(self.scope):
+		with tf.compat.v1.variable_scope(self.scope):
 			#If activation==None, this returns a simple Linear projection
 			#else the projection will be passed through an activation function
-			output = tf.layers.dense(inputs, units=self.shape, activation=self.activation,
+			output = tf.compat.v1.layers.dense(inputs, units=self.shape, activation=self.activation,
 				name='projection_{}'.format(self.scope))
 
 			return output
@@ -197,8 +197,8 @@ class StopProjection:
 		self.scope = 'stop_token_projection' if scope is None else scope
 
 	def __call__(self, inputs):
-		with tf.variable_scope(self.scope):
-			output = tf.layers.dense(inputs, units=self.shape,
+		with tf.compat.v1.variable_scope(self.scope):
+			output = tf.compat.v1.layers.dense(inputs, units=self.shape,
 				activation=None, name='projection_{}'.format(self.scope))
 
 			#During training, don't use activation as it is integrated inside the sigmoid_cross_entropy loss function
@@ -228,7 +228,7 @@ class Postnet:
 		self.scope = 'postnet_convolutions' if scope is None else scope
 
 	def __call__(self, inputs):
-		with tf.variable_scope(self.scope):
+		with tf.compat.v1.variable_scope(self.scope):
 			x = inputs
 			for i in range(hparams.postnet_num_layers - 1):
 				x = conv1d(x, self.kernel_size, self.channels, self.activation,

@@ -49,11 +49,11 @@ class ZoneoutLSTMCell(RNNCell):
           activation: Activation function of the inner states.
         """
         if not state_is_tuple:
-            tf.logging.warn(
+            tf.compat.v1.logging.warn(
                 "%s: Using a concatenated state is slower and will soon be "
                 "deprecated.  Use state_is_tuple=True.", self)
         if input_size is not None:
-            tf.logging.warn(
+            tf.compat.v1.logging.warn(
                 "%s: The input_size parameter is deprecated.", self)
 
         if not (zoneout_factor_cell >= 0.0 and zoneout_factor_cell <= 1.0):
@@ -79,12 +79,12 @@ class ZoneoutLSTMCell(RNNCell):
 
         if num_proj:
             self._state_size = (
-                tf.nn.rnn_cell.LSTMStateTuple(num_units, num_proj)
+                tf.compat.v1.nn.rnn_cell.LSTMStateTuple(num_units, num_proj)
                 if state_is_tuple else num_units + num_proj)
             self._output_size = num_proj
         else:
             self._state_size = (
-                tf.nn.rnn_cell.LSTMStateTuple(num_units, num_units)
+                tf.compat.v1.nn.rnn_cell.LSTMStateTuple(num_units, num_units)
                 if state_is_tuple else 2 * num_units)
             self._output_size = num_units
 
@@ -116,7 +116,7 @@ class ZoneoutLSTMCell(RNNCell):
         dtype = inputs.dtype
         input_size = inputs.get_shape().with_rank(2)[1]
 
-        with tf.variable_scope(scope or type(self).__name__):
+        with tf.compat.v1.variable_scope(scope or type(self).__name__):
             if input_size.value is None:
                 raise ValueError(
                     "Could not infer input size from inputs.get_shape()[-1]")
@@ -127,40 +127,40 @@ class ZoneoutLSTMCell(RNNCell):
 
             # diagonal connections
             if self.use_peepholes:
-                w_f_diag = tf.get_variable(
-                    "W_F_diag", shape=[self.num_units], dtype=dtype)
-                w_i_diag = tf.get_variable(
-                    "W_I_diag", shape=[self.num_units], dtype=dtype)
-                w_o_diag = tf.get_variable(
-                    "W_O_diag", shape=[self.num_units], dtype=dtype)
+                w_f_diag = tf.compat.v1.get_variable(
+                    "W_F_diag", shape=[self.num_units], dtype=dtype, use_resource=False)
+                w_i_diag = tf.compat.v1.get_variable(
+                    "W_I_diag", shape=[self.num_units], dtype=dtype, use_resource=False)
+                w_o_diag = tf.compat.v1.get_variable(
+                    "W_O_diag", shape=[self.num_units], dtype=dtype, use_resource=False)
 
-            with tf.name_scope(None, "zoneout"):
+            with tf.name_scope(name="zoneout"):
                 # make binary mask tensor for cell
                 keep_prob_cell = tf.convert_to_tensor(
-                    self.zoneout_factor_cell,
+                    value=self.zoneout_factor_cell,
                     dtype=c_prev.dtype
                 )
                 random_tensor_cell = keep_prob_cell
                 random_tensor_cell += \
-                    tf.random_uniform(tf.shape(c_prev),
+                    tf.random.uniform(tf.shape(input=c_prev),
                                       seed=None, dtype=c_prev.dtype)
                 binary_mask_cell = tf.floor(random_tensor_cell)
                 # 0 <-> 1 swap
-                binary_mask_cell_complement = tf.ones(tf.shape(c_prev)) \
+                binary_mask_cell_complement = tf.ones(tf.shape(input=c_prev)) \
                     - binary_mask_cell
 
                 # make binary mask tensor for output
                 keep_prob_output = tf.convert_to_tensor(
-                    self.zoneout_factor_output,
+                    value=self.zoneout_factor_output,
                     dtype=h_prev.dtype
                 )
                 random_tensor_output = keep_prob_output
                 random_tensor_output += \
-                    tf.random_uniform(tf.shape(h_prev),
+                    tf.random.uniform(tf.shape(input=h_prev),
                                       seed=None, dtype=h_prev.dtype)
                 binary_mask_output = tf.floor(random_tensor_output)
                 # 0 <-> 1 swap
-                binary_mask_output_complement = tf.ones(tf.shape(h_prev)) \
+                binary_mask_output_complement = tf.ones(tf.shape(input=h_prev)) \
                     - binary_mask_output
 
             # apply zoneout for cell
@@ -205,14 +205,14 @@ class ZoneoutLSTMCell(RNNCell):
 
             # apply prejection
             if self.num_proj is not None:
-                w_proj = tf.get_variable(
-                    "W_P", [self.num_units, num_proj], dtype=dtype)
+                w_proj = tf.compat.v1.get_variable(
+                    "W_P", [self.num_units, num_proj], dtype=dtype, use_resource=False)
 
                 h = tf.matmul(h, w_proj)
                 if self.proj_clip is not None:
                     h = tf.clip_by_value(h, -self.proj_clip, self.proj_clip)
 
-            new_state = (tf.nn.rnn_cell.LSTMStateTuple(c, h)
+            new_state = (tf.compat.v1.nn.rnn_cell.LSTMStateTuple(c, h)
                          if self.state_is_tuple else tf.concat(1, [c, h]))
 
             return h, new_state
@@ -251,15 +251,15 @@ def _linear(args, output_size, bias, bias_start=0.0, scope=None):
             total_arg_size += shape[1]
 
     # Now the computation.
-    with tf.variable_scope(scope or "Linear"):
-        matrix = tf.get_variable("Matrix", [total_arg_size, output_size])
+    with tf.compat.v1.variable_scope(scope or "Linear"):
+        matrix = tf.compat.v1.get_variable("Matrix", [total_arg_size, output_size], use_resource=False)
         if len(args) == 1:
             res = tf.matmul(args[0], matrix)
         else:
             res = tf.matmul(tf.concat(args, 1), matrix)
         if not bias:
             return res
-        bias_term = tf.get_variable(
+        bias_term = tf.compat.v1.get_variable(
             "Bias", [output_size],
-            initializer=tf.constant_initializer(bias_start))
+            initializer=tf.compat.v1.initializers.constant(bias_start), use_resource=False)
     return res + bias_term

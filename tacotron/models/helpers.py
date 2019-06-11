@@ -6,7 +6,7 @@ from hparams import hparams
 
 class TacoTestHelper(Helper):
 	def __init__(self, batch_size, output_dim, r):
-		with tf.name_scope('TacoTestHelper'):
+		with tf.compat.v1.name_scope('TacoTestHelper'):
 			self._batch_size = batch_size
 			self._output_dim = output_dim
 			self._reduction_factor = r
@@ -35,7 +35,7 @@ class TacoTestHelper(Helper):
 
 	def next_inputs(self, time, outputs, state, sample_ids, stop_token_prediction, name=None):
 		'''Stop on EOS. Otherwise, pass the last output as the next input and pass through state.'''
-		with tf.name_scope('TacoTestHelper'):
+		with tf.compat.v1.name_scope('TacoTestHelper'):
 			#A sequence is finished when the output probability is > 0.5
 			finished = tf.cast(tf.round(stop_token_prediction), tf.bool)
 
@@ -49,9 +49,9 @@ class TacoTestHelper(Helper):
 			#	learn to stop correctly yet, (stops too soon) one could choose to use the safer option 
 			#	to get a correct synthesis
 			if hparams.stop_at_any:
-				finished = tf.reduce_any(finished) #Recommended
+				finished = tf.reduce_any(input_tensor=finished) #Recommended
 			else:
-				finished = tf.reduce_all(finished) #Safer option
+				finished = tf.reduce_all(input_tensor=finished) #Safer option
 			
 			# Feed last output frame as next input. outputs is [N, output_dim * r]
 			next_inputs = outputs[:, -self._output_dim:]
@@ -62,11 +62,11 @@ class TacoTestHelper(Helper):
 class TacoTrainingHelper(Helper):
 	def __init__(self, batch_size, targets, stop_targets, output_dim, r, ratio, gta):
 		# inputs is [N, T_in], targets is [N, T_out, D]
-		with tf.name_scope('TacoTrainingHelper'):
+		with tf.compat.v1.name_scope('TacoTrainingHelper'):
 			self._batch_size = batch_size
 			self._output_dim = output_dim
 			self._reduction_factor = r
-			self._ratio = tf.convert_to_tensor(ratio)
+			self._ratio = tf.convert_to_tensor(value=ratio)
 			self.gta = gta
 
 			# Feed every r-th target frame as input
@@ -77,7 +77,7 @@ class TacoTrainingHelper(Helper):
 				self._stop_targets = stop_targets[:, r-1::r]
 			else:
 				# GTA synthesis
-				self._lengths = tf.tile([tf.shape(self._targets)[1]], [self._batch_size])
+				self._lengths = tf.tile([tf.shape(input=self._targets)[1]], [self._batch_size])
 
 	@property
 	def batch_size(self):
@@ -102,7 +102,7 @@ class TacoTrainingHelper(Helper):
 		return tf.tile([0], [self._batch_size])  # Return all 0; we ignore them
 
 	def next_inputs(self, time, outputs, state, sample_ids, stop_token_prediction, name=None):
-		with tf.name_scope(name or 'TacoTrainingHelper'):
+		with tf.compat.v1.name_scope(name or 'TacoTrainingHelper'):
 			if not self.gta:
 				#mark sequences where stop_target == 1 as finished (for case of imputation)
 				finished = tf.equal(self._stop_targets[:, time], [1.])
@@ -111,9 +111,9 @@ class TacoTrainingHelper(Helper):
 				finished = (time + 1 >= self._lengths)
 
 			next_inputs = tf.cond(
-				tf.less(tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32), self._ratio),
-				lambda: self._targets[:, time, :], #Teacher-forcing: return true frame
-				lambda: outputs[:,-self._output_dim:])
+				pred=tf.less(tf.random.uniform([], minval=0, maxval=1, dtype=tf.float32), self._ratio),
+				true_fn=lambda: self._targets[:, time, :], #Teacher-forcing: return true frame
+				false_fn=lambda: outputs[:,-self._output_dim:])
 
 			#Update the finished state
 			next_state = state.replace(finished=tf.cast(tf.reshape(finished, [-1, 1]), tf.float32))

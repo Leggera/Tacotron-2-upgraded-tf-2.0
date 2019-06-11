@@ -205,8 +205,8 @@ class TacotronDecoderCell(RNNCell):
 		#we don't pay much attention to the alignments of the output paddings if we impute
 		#the decoder outputs beyond the end of sequence.
 		if self._mask_finished:
-			finished = tf.cast(state.finished * tf.ones(tf.shape(alignments)), tf.bool)
-			mask = tf.zeros(tf.shape(alignments))
+			finished = tf.cast(state.finished * tf.ones(tf.shape(input=alignments)), tf.bool)
+			mask = tf.zeros(tf.shape(input=alignments))
 			masked_alignments = tf.where(finished, mask, alignments)
 		else:
 			masked_alignments = alignments

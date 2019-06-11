@@ -7,13 +7,13 @@ class Embedding:
 	"""
 	def __init__(self, num_embeddings, embedding_dim, std=0.1, name='gc_embedding'):
 		#Create embedding table
-		self.embedding_table = tf.get_variable(name,
+		self.embedding_table = tf.compat.v1.get_variable(name,
 			[num_embeddings, embedding_dim], dtype=tf.float32,
-			initializer=tf.truncated_normal_initializer(mean=0., stddev=std))
+			initializer=tf.compat.v1.initializers.truncated_normal(mean=0., stddev=std), use_resource=False)
 
 	def __call__(self, inputs):
 		#Do the actual embedding
-		return tf.nn.embedding_lookup(self.embedding_table, inputs)
+		return tf.nn.embedding_lookup(params=self.embedding_table, ids=inputs)
 
 class ReluActivation:
 	"""Simple class to wrap relu activation function in classe for later call.
@@ -25,7 +25,7 @@ class ReluActivation:
 		return tf.nn.relu(inputs, name=self.name)
 
 
-class Conv1d1x1(tf.layers.Conv1D):
+class Conv1d1x1(tf.compat.v1.layers.Conv1D):
 	"""Extend tf.layers.Conv1D for dilated layers convolutions.
 	"""
 	def __init__(in_channels, filters, kernel_size=1, padding='same', dilation_rate=1, use_bias=True, **kwargs):
@@ -39,7 +39,7 @@ class Conv1d1x1(tf.layers.Conv1D):
 		self.in_channels = in_channels
 		self.input_buffer = None
 		self._linearizer_weight = None
-		tf.add_to_collections(tf.GraphKeys.UPDATE_OPS, self._clear_linearized_weight)
+		tf.compat.v1.add_to_collections(tf.compat.v1.GraphKeys.UPDATE_OPS, self._clear_linearized_weight)
 
 	def incremental_step(self, inputs):
 		#input: [batch_size, time_length, channels]
@@ -52,10 +52,10 @@ class Conv1d1x1(tf.layers.Conv1D):
 		kw = self.kernel_size[0]
 		dilation = self.dilation_rate[0]
 
-		batch_size = tf.shape(inputs)[0]
+		batch_size = tf.shape(input=inputs)[0]
 		if kw > 1:
 			if self.input_buffer is None:
-				self.input_buffer = tf.zeros((batch_size, kw + (kw - 1) * (dilation - 1), tf.shape(inputs)[2]))
+				self.input_buffer = tf.zeros((batch_size, kw + (kw - 1) * (dilation - 1), tf.shape(input=inputs)[2]))
 			else:
 				#shift buffer
 				self.input_buffer[:, :-1, :] = self.input_buffer[:, 1:, :]
@@ -71,11 +71,11 @@ class Conv1d1x1(tf.layers.Conv1D):
 		if self._linearizer_weight is None:
 			kw = self.kernel.shape[0]
 			#layers.Conv1D
-			if tf.shape(self.kernel) == (self.filters, self.in_channels, kw):
-				weight = tf.transpose(self.kernel, [0, 2, 1])
+			if tf.shape(input=self.kernel) == (self.filters, self.in_channels, kw):
+				weight = tf.transpose(a=self.kernel, perm=[0, 2, 1])
 			else:
-				weight = tf.transpose(self.kernel, [2, 0, 1])
-			assert tf.shape(weight) == (self.filters, kw, self.in_channels)
+				weight = tf.transpose(a=self.kernel, perm=[2, 0, 1])
+			assert tf.shape(input=weight) == (self.filters, kw, self.in_channels)
 			self._linearizer_weight = tf.reshape(self.filters, -1)
 		return self._linearizer_weight
 
@@ -154,7 +154,7 @@ class ResidualConv1dGLU():
 			Tensor output
 		'''
 		residual = x
-		x = tf.layers.dropout(x, rate=self.dropout, training=not is_incremental)
+		x = tf.compat.v1.layers.dropout(x, rate=self.dropout, training=not is_incremental)
 		if is_incremental:
 			splitdim = -1
 			x = self.conv.incremental_step(x)
@@ -162,7 +162,7 @@ class ResidualConv1dGLU():
 			splitdim = 1
 			x = self.conv(x)
 			#Remove future time steps
-			x = x[:, :, :tf.shape(residual)[-1]] if self.causal else x
+			x = x[:, :, :tf.shape(input=residual)[-1]] if self.causal else x
 
 		a, b = tf.split(x, num_or_size_splits=2, axis=splitdim)
 

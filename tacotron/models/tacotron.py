@@ -41,17 +41,17 @@ class Tacotron():
 		if gta and linear_targets is not None:
 			raise ValueError('Linear spectrogram prediction is not supported in GTA mode!')
 
-		with tf.variable_scope('inference') as scope:
+		with tf.compat.v1.variable_scope('inference') as scope:
 			is_training = mel_targets is not None and not gta
-			batch_size = tf.shape(inputs)[0]
+			batch_size = tf.shape(input=inputs)[0]
 			hp = self._hparams
 			#GTA is only used for predicting mels to train Wavenet vocoder, so we ommit post processing when doing GTA synthesis
 			post_condition = hp.predict_linear and not gta
 
 			# Embeddings ==> [batch_size, sequence_length, embedding_dim]
-			embedding_table = tf.get_variable(
-				'inputs_embedding', [len(symbols), hp.embedding_dim], dtype=tf.float32)
-			embedded_inputs = tf.nn.embedding_lookup(embedding_table, inputs)
+			embedding_table = tf.compat.v1.get_variable(
+				'inputs_embedding', [len(symbols), hp.embedding_dim], dtype=tf.float32, use_resource=False)
+			embedded_inputs = tf.nn.embedding_lookup(params=embedding_table, ids=inputs)
 
 
 			#Encoder Cell ==> [batch_size, encoder_steps, encoder_lstm_units]
@@ -150,7 +150,7 @@ class Tacotron():
 				linear_outputs = FrameProjection(hp.num_freq, scope='post_processing_projection')(expand_outputs)
 
 			#Grab alignments from the final decoder state
-			alignments = tf.transpose(final_decoder_state.alignment_history.stack(), [1, 2, 0])
+			alignments = tf.transpose(a=final_decoder_state.alignment_history.stack(), perm=[1, 2, 0])
 
 			self.inputs = inputs
 			self.input_lengths = input_lengths
@@ -178,15 +178,15 @@ class Tacotron():
 
 	def add_loss(self):
 		'''Adds loss to the model. Sets "loss" field. initialize must have been called.'''
-		with tf.variable_scope('loss') as scope:
+		with tf.compat.v1.variable_scope('loss') as scope:
 			hp = self._hparams
 
 			# Compute loss of predictions before postnet
-			before = tf.losses.mean_squared_error(self.mel_targets, self.decoder_output)
+			before = tf.compat.v1.losses.mean_squared_error(self.mel_targets, self.decoder_output)
 			# Compute loss after postnet
-			after = tf.losses.mean_squared_error(self.mel_targets, self.mel_outputs)
+			after = tf.compat.v1.losses.mean_squared_error(self.mel_targets, self.mel_outputs)
 			#Compute <stop_token> loss (for learning dynamic generation stop)
-			stop_token_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+			stop_token_loss = tf.reduce_mean(input_tensor=tf.nn.sigmoid_cross_entropy_with_logits(
 				labels=self.stop_token_targets,
 				logits=self.stop_token_prediction))
 
@@ -196,7 +196,7 @@ class Tacotron():
 				#Prioritize loss for frequencies under 2000 Hz.
 				l1 = tf.abs(self.linear_targets - self.linear_outputs)
 				n_priority_freq = int(2000 / (hp.sample_rate * 0.5) * hp.num_mels)
-				linear_loss = 0.5 * tf.reduce_mean(l1) + 0.5 * tf.reduce_mean(l1[:,:,0:n_priority_freq])
+				linear_loss = 0.5 * tf.reduce_mean(input_tensor=l1) + 0.5 * tf.reduce_mean(input_tensor=l1[:,:,0:n_priority_freq])
 			else:
 				linear_loss = 0.
 
@@ -208,7 +208,7 @@ class Tacotron():
 				reg_weight = hp.tacotron_reg_weight
 
 			# Get all trainable variables
-			all_vars = tf.trainable_variables()
+			all_vars = tf.compat.v1.trainable_variables()
 			regularization = tf.add_n([tf.nn.l2_loss(v) for v in all_vars
 				if not('bias' in v.name or 'Bias' in v.name)]) * reg_weight
 
@@ -227,16 +227,16 @@ class Tacotron():
 		Args:
 			global_step: int32 scalar Tensor representing current global step in training
 		'''
-		with tf.variable_scope('optimizer') as scope:
+		with tf.compat.v1.variable_scope('optimizer') as scope:
 			hp = self._hparams
 			if hp.tacotron_decay_learning_rate:
 				self.decay_steps = hp.tacotron_decay_steps
 				self.decay_rate = hp.tacotron_decay_rate
 				self.learning_rate = self._learning_rate_decay(hp.tacotron_initial_learning_rate, global_step)
 			else:
-				self.learning_rate = tf.convert_to_tensor(hp.tacotron_initial_learning_rate)
+				self.learning_rate = tf.convert_to_tensor(value=hp.tacotron_initial_learning_rate)
 
-			optimizer = tf.train.AdamOptimizer(self.learning_rate, hp.tacotron_adam_beta1,
+			optimizer = tf.compat.v1.train.AdamOptimizer(self.learning_rate, hp.tacotron_adam_beta1,
 				hp.tacotron_adam_beta2, hp.tacotron_adam_epsilon)
 			gradients, variables = zip(*optimizer.compute_gradients(self.loss))
 			self.gradients = gradients
@@ -246,7 +246,7 @@ class Tacotron():
 
 			# Add dependency on UPDATE_OPS; otherwise batchnorm won't work correctly. See:
 			# https://github.com/tensorflow/tensorflow/issues/1122
-			with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
+			with tf.control_dependencies(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)):
 				self.optimize = optimizer.apply_gradients(zip(clipped_gradients, variables),
 					global_step=global_step)
 
@@ -266,7 +266,7 @@ class Tacotron():
 		hp = self._hparams
 
 		#Compute natural exponential decay
-		lr = tf.train.exponential_decay(init_lr, 
+		lr = tf.compat.v1.train.exponential_decay(init_lr, 
 			global_step - hp.tacotron_start_decay, #lr = 1e-3 at step 50k
 			self.decay_steps, 
 			self.decay_rate, #lr = 1e-5 around step 300k
