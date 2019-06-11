@@ -66,7 +66,7 @@ def _location_sensitive_score(W_query, W_fil, W_keys):
 
 	v_a = tf.compat.v1.get_variable(
 		'attention_variable', shape=[num_units], dtype=dtype,
-		initializer=tf.contrib.layers.xavier_initializer(), use_resource=False)
+		initializer=tf.keras.initializers.GlorotUniform(), use_resource=False)
 	b_a = tf.compat.v1.get_variable(
 		'attention_bias', shape=[num_units], dtype=dtype,
 		initializer=tf.compat.v1.initializers.zeros(), use_resource=False)
