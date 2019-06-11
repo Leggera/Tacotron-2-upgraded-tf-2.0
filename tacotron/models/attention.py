@@ -149,7 +149,7 @@ class LocationSensitiveAttention(BahdanauAttention):
 		"""
 		#Create normalization function
 		#Setting it to None defaults in using softmax
-		normalization_function = _smoothing_normalization if (smoothing == True) else None
+		normalization_function = _smoothing_normalization #TODO if (smoothing == True) else None
 		memory_length = memory_sequence_length if (mask_encoder==True) else None
 		super(LocationSensitiveAttention, self).__init__(
 				units=num_units,
